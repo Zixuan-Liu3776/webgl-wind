@@ -26,7 +26,7 @@ gui.add(wind, 'dropRate', 0, 0.1);
 gui.add(wind, 'dropRateBump', 0, 0.2);
 
 const windFiles = {
-    0: '2016112000',
+    0: 'output',
     6: '2016112006',
     12: '2016112012',
     18: '2016112018',
@@ -59,33 +59,50 @@ function updateRetina() {
     wind.resize();
 }
 
-getJSON('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_coastline.geojson', function (data) {
+getJSON('./gz_2010_us_040_00_20m.json', function (data) {
     const canvas = document.getElementById('coastline');
     canvas.width = canvas.clientWidth * pxRatio;
     canvas.height = canvas.clientHeight * pxRatio;
-
+    minlng = 180;
+    maxlng = -180;
+    minlat = 180;
+    maxlat = -180;
+    for (let k = 0; k < data.features[2].geometry.coordinates.length; k++) {
+        const entry = data.features[2].geometry.coordinates[k];
+        for (let i = 0; i < entry.length; i++) {
+            const line = entry[i];
+            for (let j = 0; j < line.length; j++) {
+                if (line[j][0] < minlat) {minlat = line[j][0];}
+                if (line[j][0] > maxlat) {maxlat = line[j][0];}
+                if (line[j][1] < minlng) {minlng = line[j][1];}
+                if (line[j][1] > maxlng) {maxlng = line[j][1];}
+            }
+        }
+    }
     const ctx = canvas.getContext('2d');
     ctx.lineWidth = pxRatio;
     ctx.lineJoin = ctx.lineCap = 'round';
     ctx.strokeStyle = 'white';
     ctx.beginPath();
-
-    for (let i = 0; i < data.features.length; i++) {
-        const line = data.features[i].geometry.coordinates;
-        for (let j = 0; j < line.length; j++) {
-            ctx[j ? 'lineTo' : 'moveTo'](
-                (line[j][0] + 180) * canvas.width / 360,
-                (-line[j][1] + 90) * canvas.height / 180);
+    for (let k = 0; k < data.features[2].geometry.coordinates.length; k++) {
+        const entry = data.features[2].geometry.coordinates[k];
+        for (let i = 0; i < entry.length; i++) {
+            const line = entry[i];
+            for (let j = 0; j < line.length; j++) {
+                ctx[j ? 'lineTo' : 'moveTo'](
+                    1.01 *(line[j][0] - minlat) * canvas.width / (maxlat - minlat),
+                    canvas.height - (line[j][1] - minlng) * canvas.height / (maxlng - minlng));
+            }
         }
     }
     ctx.stroke();
 });
 
 function updateWind(name) {
-    getJSON('wind/' + windFiles[name] + '.json', function (windData) {
+    getJSON(windFiles[name] + '.json', function (windData) {
         const windImage = new Image();
         windData.image = windImage;
-        windImage.src = 'wind/' + windFiles[name] + '.png';
+        windImage.src = windFiles[name] + '.png';
         windImage.onload = function () {
             wind.setWind(windData);
         };
